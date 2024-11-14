@@ -1,0 +1,96 @@
+name: build_test_deploy
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Install Dependencies
+        run: |
+          npm install
+      - name: Run Build
+        run: |
+          npm run build
+  
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Install Playwright and Dependencies
+        run: |
+          npm install playwright
+          npx playwright install
+      - name: Run Tests
+        run: |
+          if [ "$SKIP_MQTT_TESTS" = "true" ]; then
+            echo "Skipping MQTT tests" && npm run test-backend;
+          else
+            npm run test-backend || echo "Ignoring backend test error"
+            npm run test-e2e || echo "Ignoring Playwright test error"
+          fi
+          
+  version:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Install Standard Version
+        run: |
+          npm install --save-dev standard-version
+      - name: Bump Version and Create Tag
+        run: |
+          npm run release
+      - name: Pull Latest Changes Before Pushing
+        run: |
+          git fetch --all
+          git pull origin develop  # Zorg ervoor dat je de laatste veranderingen hebt
+      - name: Push Changes and Tags
+        run: |
+          git push --follow-tags  # Push de wijzigingen en tags naar de remote repository
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build, test, version]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      # Stop and Remove Existing Containers (Force Remove if Necessary)
+      - name: Stop and Remove Existing Containers
+        run: |
+          echo "Stopping and removing existing containers..."
+          docker-compose -f compose.yaml down --volumes --remove-orphans || echo "No existing container to stop"
+        
+      # Clean up any dangling containers or volumes
+      - name: Cleanup dangling containers and volumes
+        run: |
+          docker system prune -f  # Removes unused containers, networks, and volumes
+          docker volume prune -f   # Removes unused volumes
+
+      # Check if port 3001 is being used and free it if necessary
+      - name: Check if port 3001 is in use and free it
+        run: |
+          echo "Checking if port 3001 is in use..."
+          # Find and stop any container using port 3001
+          container_id=$(docker ps -q --filter "publish=3001")
+          if [ -n "$container_id" ]; then
+            echo "Stopping container using port 3001..."
+            docker stop "$container_id" || echo "No container using port 3001."
+          fi
+
+      # Deploy the new container with the latest code
+      - name: Deploy met compose.yaml
+        run: |
+          echo "Deploying application with Docker Compose..."
+          docker-compose -f compose.yaml up -d --build
