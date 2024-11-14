@@ -34,6 +34,4 @@ De pipeline doorloopt de stappen voor build, test en deploy. Dit zorgt ervoor da
 
 De applicatie draait in een container en is toegankelijk via een webinterface. Voor nu sla ik versies nog niet op in Docker Hub, maar de applicatie is operationeel en makkelijk te beheren.
 
-## Conclusie
 
-Deze opzet biedt een efficiënte en consistente workflow voor applicatiebeheer en -implementatie.
