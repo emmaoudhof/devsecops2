@@ -5,6 +5,8 @@
 ## Overzicht
 
 Dit project beschrijft de implementatie van een geautomatiseerde DevOps-omgeving voor applicatiebeheer, inclusief installatie, versiebeheer, monitoring, CI/CD-pipelines en containerhosting.
+VM1: Docker, Gitea, Prometheus en Grafana.
+VM2: Docker, Gitea, Act_runner en Node Exporter.
 
 ## Onderdelen
 
